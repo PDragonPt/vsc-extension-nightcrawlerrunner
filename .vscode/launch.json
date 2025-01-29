@@ -17,7 +17,8 @@
 			],
 			"preLaunchTask": "${defaultBuildTask}",
 			"env": {
-                "POST_RUN_CMDS0": "vsc:remote-containers.attachToRunningContainer cac8847f99bfd5cf21eae555c6828a58323a1c4b502f1931993b491a81d5a1ce \n vsc:workbench.action.closeWindow",				
+                "POST_RUN_CMDS": "vsc:remote-containers.attachToRunningContainer m365pnp-powershell-latest \n sys:workbench.action.closeWindow",		
+				"POST_RUN_CMDSaaa": "vsc:remote-containers.attachToRunningContainer 6d333635706e702d706f7765727368656c6c2d6c6174657374 \n vsc:workbench.action.closeWindow",						
 				"POST_RUN_CMDSPowerShellExample": "sys:pwsh -Command \" '123' | Out-File -FilePath '~/test.txt' -Encoding utf8 -NoNewline;\"",
 				"POST_RUN_CMDSBashExample": "sys:echo -n '123' > ~/testbash.txt",
 				"POST_RUN_CMDS_MAIN_DELAY": "5000"

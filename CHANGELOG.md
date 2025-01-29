@@ -6,3 +6,5 @@ All notable changes to the "NightCrawlerRunner" extension will be documented in 
 - Initial release
 ## 1.0.1
 - Fixed package.json : homepage and git repo
+## 1.0.2
+- Fixed kill process vscode
