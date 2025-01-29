@@ -10,19 +10,21 @@ const envNightCrawlerDelay = process.env.POST_RUN_CMDS_MAIN_DELAY;
 // parse envNightCrawlerDelay to int
 const NightCrawlerDelay = envNightCrawlerDelay ? parseInt(envNightCrawlerDelay) : 5000;
 
-var modLabel = "[NightCrawlerRunner] ";
 
+// get current extension version
+const extensionVersion = vscode.extensions.getExtension('nightcrawler.nightcrawlerrunner')?.packageJSON.version;
+var modLabel = "[NightCrawlerRunner " + extensionVersion + "] ";
 
 export const runSysCommand = async (command: string): Promise<{ stdout: string; stderr: string }> => {
-    return new Promise((resolve, reject) => {
-        exec(command, { encoding: 'utf-8' }, (error, stdout, stderr) => {
-            if (error) {
-                reject(new Error(`Execution failed: ${error.message}`));
-                return;
-            }
-            resolve({ stdout, stderr });
-        });
-    });
+	return new Promise((resolve, reject) => {
+		exec(command, { encoding: 'utf-8' }, (error, stdout, stderr) => {
+			if (error) {
+				reject(new Error(`Execution failed: ${error.message}`));
+				return;
+			}
+			resolve({ stdout, stderr });
+		});
+	});
 };
 
 
@@ -33,7 +35,7 @@ async function writeMessage(msg: string, log: boolean = true, vsc: boolean = fal
 }
 async function writeErrorMessage(msg: string, log: boolean = true, vsc: boolean = false) {
 	if (log) { console.log(modLabel + "[Error] " + msg); }
-	if (vsc) { await vscode.window.showErrorMessage(modLabel + msg); };
+	if (vsc) { await vscode.window.showInformationMessage(modLabel + msg); };
 }
 // create CommandType enum
 enum CommandType {
@@ -63,11 +65,11 @@ function LoadCommands(): CommandProcess[] {
 	const commands = NightCrawlerCmds ? NightCrawlerCmds.split('\n') : [];
 	const result: CommandProcess[] = [];
 	commands.forEach((cmd) => {
-		cmd=cmd.trim();
+		cmd = cmd.trim();
 		const type = cmd.startsWith('vsc:') ? CommandType.extension : CommandType.system;
-		cmd = cmd.startsWith('vsc:') ? cmd.replace("vsc:","") : cmd;
-		cmd = cmd.startsWith('sys:') ? cmd.replace("sys:","") : cmd;
-	
+		cmd = cmd.startsWith('vsc:') ? cmd.replace("vsc:", "") : cmd;
+		cmd = cmd.startsWith('sys:') ? cmd.replace("sys:", "") : cmd;
+
 		result.push(new CommandProcess(cmd, type));
 	});
 	return result;
@@ -82,8 +84,23 @@ const executeCommand = async (theCommand: CommandProcess) => {
 	return new Promise<void>((resolve) => {
 		setTimeout(async () => {
 			try {
+				await writeMessage(`Start executing :${theCommand.command}`, true, true);
 				if (theCommand.type === CommandType.extension) {
-				await vscode.commands.executeCommand(cmd, ...args);
+					const vscodePID = process.ppid; // Get parent process ID (VS Code's PID)
+					console.log(`[Extension] Running inside VS Code process PID: ${vscodePID}`);
+					vscode.commands.executeCommand(cmd, ...args).then(() => {
+						console.log("[Extension] New VS Code window launched.");
+						
+						// Kill the initial VS Code process after a delay
+						setTimeout(() => {
+							try {
+								exec(`kill ${vscodePID}`);
+								console.log(`[Extension] Killed initial VS Code process: ${vscodePID}`);
+							} catch (e) {
+								console.log(`[Extension] Failed to kill initial VS Code process: ${e}`);
+							}
+						}, 5000); // Adjust delay if needed
+					});
 				}
 				else {
 					await runSysCommand(theCommand.command);
@@ -114,11 +131,12 @@ function initializeNightCrawler() {
 		writeMessage('Is alive but NOT kicking ! No commands were found in environment !');
 		return;
 	}
+
 	// if commands are found return
 	writeMessage('Is alive and kicking ! ...  and commands were found in environment !', true, true);
 	writeMessage('cmds = ' + NightCrawlerCmds, true, true);
-	
-		const processCommandsSequentially = async () => {
+
+	const processCommandsSequentially = async () => {
 
 
 		var cmds = commands;
@@ -132,7 +150,7 @@ function initializeNightCrawler() {
 
 				for (const cmd of commands) {
 					await executeCommand(cmd);
-				
+
 				}
 			} catch (e) {
 				cmd.status = CommandStatus.failed;
@@ -149,7 +167,7 @@ function initializeNightCrawler() {
 				})
 			);
 		}
-		
+
 
 	};
 
@@ -163,6 +181,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when the extension is deactivated
-export function deactivate() { 
+export function deactivate() {
 	console.log('The extension "NightCrawlerRunner" is now deactivated!');
 }
